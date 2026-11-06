@@ -1,0 +1,9 @@
+server:
+  port: 9000
+
+spring:
+  application:
+    name: truenorth119-auth
+
+truenorth119:
+  demo-password: ${DEMO_PASSWORD:dev-only-password}

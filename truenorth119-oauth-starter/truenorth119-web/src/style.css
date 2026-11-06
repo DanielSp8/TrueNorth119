@@ -1,0 +1,5 @@
+:root { font-family: system-ui, sans-serif; color: #203448; background: #f5f8fb; }
+main { max-width: 680px; margin: 12vh auto; padding: 2.5rem; background: white; border: 1px solid #dbe4ea; border-radius: 18px; }
+button { background: #1b5269; color: white; padding: 0.75rem 1rem; border: 0; border-radius: 8px; cursor: pointer; margin: .3rem; }
+button:hover { background: #124155; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f2f5f8; padding: 1rem; }

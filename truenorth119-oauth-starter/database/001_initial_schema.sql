@@ -1,3 +1,12 @@
+-- ============================================================================
+-- TrueNorth119 | MySQL database schema | Version 3
+-- Target: MySQL Server 8.0.16+ (including MySQL 8.4), via MySQL Workbench
+--
+-- FRESH DATABASE SETUP: This creates a new schema and its tables. It is NOT a
+-- migration from the earlier PostgreSQL schema or any existing MySQL tables.
+-- Do not rerun against an existing TrueNorth119 installation without planning
+-- a migration/backing up your data first.
+--
 -- Model:
 --   users        - user profiles; login/authentication is managed separately
 --   themes       - owned Scripture collections (one owner per theme)
@@ -16,9 +25,6 @@ CREATE DATABASE IF NOT EXISTS truenorth119
     COLLATE utf8mb4_0900_ai_ci;
 
 USE truenorth119;
-
--- drop table if exists users, ...;
--- add tables to drop on the line above...
 
 -- 1. Registered users -------------------------------------------------------
 CREATE TABLE users (
@@ -126,3 +132,74 @@ BEGIN
 END$$
 
 DELIMITER ;
+
+-- ============================================================================
+-- EXAMPLE QUERIES (commented out; run individually after schema setup)
+-- ============================================================================
+
+-- Add two user profiles:
+-- INSERT INTO users (username) VALUES ('alex'), ('jordan');
+
+-- Create a theme owned by user 1:
+-- INSERT INTO themes (owner_user_id, title, description)
+-- VALUES (1, 'Faith', 'Bible references about trusting God');
+-- SELECT LAST_INSERT_ID() AS new_theme_id;
+
+-- Add a reference to theme 1:
+-- INSERT INTO verses (theme_id, address, notes)
+-- VALUES (1, 'Hebrews 11:1', 'Faith is confidence in what we hope for');
+
+-- Share theme 1 with user 2 as a viewer (the backend MUST confirm user 1
+-- is the signed-in owner; this SQL conditions the insert on ownership):
+-- INSERT INTO theme_shares (theme_id, shared_with_user_id, permission)
+-- SELECT t.id, 2, 'viewer'
+-- FROM themes AS t
+-- WHERE t.id = 1 AND t.owner_user_id = 1;
+
+-- Give user 2 editor permissions, but only if user 1 owns the theme:
+-- UPDATE theme_shares AS s
+-- JOIN themes AS t ON t.id = s.theme_id
+-- SET s.permission = 'editor'
+-- WHERE s.theme_id = 1
+--   AND s.shared_with_user_id = 2
+--   AND t.owner_user_id = 1;
+
+-- List themes owned by or shared with user 2:
+-- SELECT t.id, t.title, t.owner_user_id,
+--        CASE WHEN t.owner_user_id = 2 THEN 'owner'
+--             ELSE s.permission END AS my_access
+-- FROM themes AS t
+-- LEFT JOIN theme_shares AS s
+--   ON s.theme_id = t.id AND s.shared_with_user_id = 2
+-- WHERE t.owner_user_id = 2 OR s.shared_with_user_id IS NOT NULL
+-- ORDER BY t.title;
+
+-- List the verses in theme 1 only when user 2 is the owner or a recipient:
+-- SELECT v.id, v.address, v.notes
+-- FROM verses AS v
+-- JOIN themes AS t ON t.id = v.theme_id
+-- WHERE t.id = 1
+--   AND (t.owner_user_id = 2 OR EXISTS (
+--       SELECT 1 FROM theme_shares AS s
+--       WHERE s.theme_id = t.id AND s.shared_with_user_id = 2
+--   ))
+-- ORDER BY v.address;
+
+-- Revoke the share; only the owner (user 1) should be allowed:
+-- DELETE s FROM theme_shares AS s
+-- JOIN themes AS t ON t.id = s.theme_id
+-- WHERE s.theme_id = 1
+--   AND s.shared_with_user_id = 2
+--   AND t.owner_user_id = 1;
+
+-- Permissions enforced by the backend:
+--   - Owner: manage theme details, verses, sharing, and deletion.
+--   - Editor: read theme and add/edit/delete its verses, not manage sharing.
+--   - Viewer: read only.
+--   - Only grant access to themes owned by or shared with current user.
+--   - Use authenticated user IDs (not caller-supplied IDs), SQL parameters,
+--     and authorization checks for every read/write endpoint.
+--   - The chosen utf8mb4_0900_ai_ci collation makes text uniqueness
+--     case-insensitive AND accent-insensitive (e.g., Faith/faith are the same).
+--   - Configure database session time zones consistently (prefer UTC) so
+--     DATETIME values are written consistently across clients.
